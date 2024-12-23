@@ -15,9 +15,9 @@ fn main() {
         let mut color_grid: Vec<Vec<Color>> = vec![vec![Color::BLACK; width as usize]; height as usize];
 
     let mut draw_process = 0;
-    let draw_batch = 720 * 12;
+    let draw_batch = 720 * 720;
 
-    let scene = Scene {
+    let mut scene = Scene {
         objects: vec![
             Box::new(Sphere {
                 center: Vector3::new(0.0, 0.0, 5.0),
@@ -47,10 +47,34 @@ fn main() {
         directional_light: Vector3::new(-2.0, -2.0, 1.0),
     };
 
+    let mut velocity = Vector3::zero();
+    let mut position = Vector3::new(0.0, 0.0, 5.0);
+
     while !rl.window_should_close() {
         // Update
+        
+        position += velocity * rl.get_frame_time();
+        if position.y < 0.0 {
+            position.y = 0.0;
+            velocity.y = -velocity.y * 0.8;
+            if velocity.y.abs() < 1.0 {
+                velocity.y = 0.0;
+                position.y = 0.0;
+            }
+        } else if position.y > 0.0 {
+            velocity -= Vector3::new(0.0, 2.0, 0.00) * rl.get_frame_time();
+        }
+
+        scene.objects[0].set_position(position);
+
+        if rl.is_key_pressed(KeyboardKey::KEY_SPACE) {
+            
+            velocity.y = 5.0;
+        }
+        
         for _ in 0..draw_batch {
-            if draw_process == width * height {
+            if draw_process >= width * height {
+                draw_process = 0;
                 break;
             }
 
@@ -166,6 +190,7 @@ trait Object {
     fn intersection(&self, ray_origin: Vector3, ray_direction: Vector3) -> Option<(f32, Vector3)>;
     fn color(&self) -> Color;
     fn normal(&self, point: Vector3) -> Vector3;
+    fn set_position(&mut self, position: Vector3);
 }
 
 struct Sphere {
@@ -210,6 +235,10 @@ impl Object for Sphere {
     fn normal(&self, point: Vector3) -> Vector3 {
         (point - self.center) / self.radius
     }
+
+    fn set_position(&mut self, position: Vector3) {
+        self.center = position;
+    }
 }
 
 struct Plane {
@@ -237,5 +266,9 @@ impl Object for Plane {
 
     fn normal(&self, _point: Vector3) -> Vector3 {
         self.normal
+    }
+
+    fn set_position(&mut self, position: Vector3) {
+        self.point = position;
     }
 }
