@@ -1,6 +1,8 @@
-use std::ops::Mul;
+#![feature(portable_simd)]
+use std::simd::{self, StdFloat};
 
 use raylib::prelude::*;
+use std::simd::f32x8;
 
 fn main() {
     let width = 720;
@@ -84,6 +86,9 @@ fn main() {
 
             
             color_grid[y as usize][x as usize] = raytracer(&scene, Vector3::zero(), ray_from_pixel(x, y, width, height));
+            color_grid[y as usize][x as usize] = raytracer(&scene, Vector3::zero(), ray_from_pixel(x, y, width, height));
+            simd_ray_from_pixel(x, y, width, height);
+            return;
 
             draw_process += 1;
         }
@@ -108,7 +113,44 @@ fn ray_from_pixel(x: i32, y: i32, width: i32, height: i32) -> Vector3 {
 
     let mut v = Vector3::new(x, y, z);
     v.normalize();
+
+    println!("{:?}", v);
     v
+}
+
+fn simd_ray_from_pixel(x: i32, y: i32, width: i32, height: i32) -> [f32x8; 3] {
+    // fov is 90 degrees
+
+    //let x = (x - width / 2) as f32 + 0.5;
+    let offsets = simd::f32x8::from_array([0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0]);
+    let mut x = simd::f32x8::splat(x as f32) + offsets;
+    x -= f32x8::splat(width as f32 / 2.0) - simd::f32x8::splat(0.5);
+
+    //let y = (height / 2 - y) as f32 - 0.5;
+    let y = simd::f32x8::splat(height as f32 / 2.0) - simd::f32x8::splat(y as f32) - simd::f32x8::splat(0.5);
+    
+    //let z = width as f32 / 2.0;
+    let z = simd::f32x8::splat(width as f32 / 2.0);
+
+
+    let ret = normalize(&[x, y, z]);
+
+    println!("{:?}", ret);
+
+    ret
+}
+
+fn lenSquared(v: &[f32x8; 3]) -> f32x8 {
+    v[0] * v[0] + v[1] * v[1] + v[2] * v[2]
+}
+
+fn normalize(v: &[f32x8; 3]) -> [f32x8; 3] {
+    let len = lenSquared(v).sqrt();
+    [v[0] / len, v[1] / len, v[2] / len]
+}
+
+fn dot(v: &[f32x8; 3], u: &[f32x8; 3]) -> f32x8 {
+    v[0] * u[0] + v[1] * u[1] + v[2] * u[2]
 }
 
 fn raytracer(scene: &Scene, origin: Vector3, direction: Vector3) -> Color {
